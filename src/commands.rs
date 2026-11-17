@@ -2533,7 +2533,7 @@ fn what_cursor_position(ed: &mut Editor) {
     let tw = ed.tab_width();
     let b = ed.b();
     let total = b.len();
-    let pct = if total == 0 { 0 } else { p * 100 / total };
+    let pct = (p * 100).checked_div(total).unwrap_or(0);
     let col = b.column(p, tw);
     match b.char_at(p) {
         Some(c) => {
