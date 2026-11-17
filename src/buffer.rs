@@ -473,6 +473,8 @@ impl Buffer {
     }
 
     pub fn mark_saved(&mut self) {
+        // Changes made while saving (formatters) belong before the save point.
+        self.undo_boundary(0);
         self.modified = false;
         for g in &mut self.undo {
             g.unmodified_before = false;
@@ -528,6 +530,19 @@ mod tests {
         // Break the chain: next undo redoes.
         b.undo_step(false).unwrap();
         assert_eq!(b.text.to_string(), "abcd");
+    }
+
+    #[test]
+    fn undo_after_save_with_edits_during_save() {
+        let mut b = buf("x ");
+        b.insert(2, "y");
+        b.undo_boundary(0);
+        b.delete(1, 2); // formatter edit during save
+        b.mark_saved();
+        b.undo_step(false).unwrap();
+        assert!(b.modified, "undoing past the save point must mark modified");
+        b.undo_step(true).unwrap();
+        assert!(!b.modified || b.text.to_string() == "x ");
     }
 
     #[test]
