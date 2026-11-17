@@ -291,6 +291,9 @@ pub struct Editor {
     pub clipboard: crate::clipboard::Clipboard,
     /// Last text exchanged with the system clipboard.
     pub clip_last: Option<String>,
+    /// Key that repeats the last command (z after C-x z, e after C-x e).
+    pub repeat_key: Option<(Key, String)>,
+    pub last_insert: Option<char>,
 }
 
 pub type Cmd = fn(&mut Editor);
@@ -379,6 +382,8 @@ impl Editor {
             init_error: None,
             clipboard: crate::clipboard::Clipboard::None,
             clip_last: None,
+            repeat_key: None,
+            last_insert: None,
         };
         ed.clipboard = crate::clipboard::Clipboard::from_setting(&ed.cfg.clipboard);
         let mut mb = Buffer::new(" *Minibuf-0*", cwd.clone());
@@ -892,6 +897,14 @@ impl Editor {
         if let Some(rk) = self.read_key.take() {
             self.handle_read_key(rk, key);
             return;
+        }
+        // `C-x z z z...` and `C-x e e e...`: the last key repeats the command.
+        if let Some((k, cmd)) = self.repeat_key.take() {
+            if key == k && self.prefix.is_empty() {
+                self.message = None;
+                self.run_command(&cmd);
+                return;
+            }
         }
         if self.qr.is_some() {
             crate::search::qr_key(self, key);

@@ -919,6 +919,7 @@ pub fn self_insert(ed: &mut Editor, c: char) {
             ed.goto(a);
         }
     }
+    ed.last_insert = Some(c);
     let s: String = std::iter::repeat_n(c, n).collect();
     if ed.b().overwrite {
         let p = ed.pt();
@@ -2764,11 +2765,17 @@ fn repeat(ed: &mut Editor) {
         ed.error("No repeatable command");
         return;
     };
+    ed.repeat_key = Some((
+        crate::key::Key::new(crate::key::K::Char('z')),
+        "repeat".into(),
+    ));
+    ed.arg = arg;
     if cmd == "self-insert-command" {
-        ed.error("Cannot repeat self-insert this way");
+        if let Some(c) = ed.last_insert {
+            self_insert(ed, c);
+        }
         return;
     }
-    ed.arg = arg;
     if let Some(f) = lookup(&cmd) {
         f(ed);
     }
@@ -3249,6 +3256,10 @@ fn kmacro_end_and_call(ed: &mut Editor) {
         return;
     }
     call_macro(ed);
+    ed.repeat_key = Some((
+        crate::key::Key::new(crate::key::K::Char('e')),
+        "kmacro-end-and-call-macro".into(),
+    ));
 }
 
 fn kmacro_start_or_counter(ed: &mut Editor) {
