@@ -23,7 +23,7 @@ cursor-color = "yellow"
 frame-title-format = "tmacs - %b (%f)"
 format-on-save = true               # master switch for before-save formatting
 kitty-keyboard = true               # enables C-<tab>, C-M-RET... where supported
-clipboard-osc52 = false             # copy kills to the system clipboard via OSC 52
+clipboard = "auto"                  # kills <-> system clipboard: auto|pbcopy|osc52|wayland|xclip|none
 
 [faces]
 default = { fg = "wheat", bg = "DarkSlateGray" }

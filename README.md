@@ -11,6 +11,9 @@ Emacs (`emacs -nw`) with the configuration from `~/.emacs.cli.d/init.el`.
   faces and fontified lazily like jit-lock, so huge files open instantly.
 - Format-on-save hooks per language (`gofmt`, `terraform fmt`, `prettier`,
   `rustfmt`, `black`, `clang-format`, `shfmt`, ...).
+- Kills and yanks share the system clipboard (`pbcopy`/`pbpaste` on macOS,
+  OSC 52 over SSH, `wl-copy`/`xclip` on Linux), like Emacs'
+  interprogram cut/paste.
 - Mouse support (xterm-mouse-mode): click, drag to select, double/triple
   click, wheel scrolls one line.
 

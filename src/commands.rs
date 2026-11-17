@@ -1234,6 +1234,7 @@ fn kill_ring_save(ed: &mut Editor) {
 }
 
 fn yank(ed: &mut Editor) {
+    ed.sync_clipboard();
     if ed.kill_ring.is_empty() {
         ed.error("Kill ring is empty");
         return;

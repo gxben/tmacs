@@ -288,6 +288,9 @@ pub struct Editor {
     pub recenter_cycle: usize,
     pub next_error: Option<(BufId, usize)>,
     pub init_error: Option<String>,
+    pub clipboard: crate::clipboard::Clipboard,
+    /// Last text exchanged with the system clipboard.
+    pub clip_last: Option<String>,
 }
 
 pub type Cmd = fn(&mut Editor);
@@ -374,7 +377,10 @@ impl Editor {
             recenter_cycle: 0,
             next_error: None,
             init_error: None,
+            clipboard: crate::clipboard::Clipboard::None,
+            clip_last: None,
         };
+        ed.clipboard = crate::clipboard::Clipboard::from_setting(&ed.cfg.clipboard);
         let mut mb = Buffer::new(" *Minibuf-0*", cwd.clone());
         mb.kind = BufKind::Mini;
         ed.bufs.push(Some(mb));
@@ -821,9 +827,24 @@ impl Editor {
         }
         self.kill_idx = 0;
         self.this_kill = true;
-        if self.cfg.clipboard_osc52 {
-            crate::files::osc52_copy(&self.kill_ring[0]);
+        let s = self.kill_ring[0].clone();
+        self.clipboard.copy(&s);
+        self.clip_last = Some(s);
+    }
+
+    /// Emacs interprogram-paste: if another program put new text on the
+    /// clipboard, push it onto the kill ring before yanking.
+    pub fn sync_clipboard(&mut self) {
+        let Some(t) = self.clipboard.paste() else {
+            return;
+        };
+        if self.clip_last.as_deref() == Some(t.as_str()) || self.kill_ring.first() == Some(&t) {
+            return;
         }
+        self.kill_ring.insert(0, t.clone());
+        self.kill_ring.truncate(120);
+        self.kill_idx = 0;
+        self.clip_last = Some(t);
     }
 
     pub fn copy_as_kill(&mut self, s: String) {

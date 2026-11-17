@@ -39,7 +39,9 @@ pub struct Settings {
     pub format_timeout_ms: u64,
     pub max_highlight_size: usize,
     pub delete_selection_mode: bool,
-    pub clipboard_osc52: bool,
+    /// "auto" (pbcopy locally, OSC 52 over SSH), "pbcopy", "osc52",
+    /// "wayland", "xclip" or "none".
+    pub clipboard: String,
     pub yes_or_no_short: bool,
 }
 
@@ -77,7 +79,7 @@ impl Default for Settings {
             format_timeout_ms: 5000,
             max_highlight_size: 20 * 1024 * 1024,
             delete_selection_mode: false,
-            clipboard_osc52: false,
+            clipboard: "auto".into(),
             yes_or_no_short: true,
         }
     }

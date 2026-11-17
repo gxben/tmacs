@@ -3,6 +3,7 @@
 #![allow(clippy::collapsible_if, clippy::rc_clone_in_vec_init)]
 
 mod buffer;
+mod clipboard;
 mod color;
 mod commands;
 mod config;
