@@ -549,9 +549,12 @@ mod languages {
         f.iter().any(|(w, fc)| w.contains(word) && *fc == face)
     }
 
+    /// (syntax, source, expected (substring, face) pairs)
+    type Case<'a> = (&'a str, &'a str, &'a [(&'a str, &'a str)]);
+
     #[test]
     fn major_languages() {
-        let cases: &[(&str, &str, &[(&str, &str)])] = &[
+        let cases: &[Case] = &[
             (
                 "Python",
                 "# c\ndef foo(x):\n    return \"s\"\n",

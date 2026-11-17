@@ -21,6 +21,9 @@ mod syntax;
 mod text;
 mod view;
 
+#[cfg(test)]
+mod tests;
+
 use crossterm::event::{
     self, Event, KeyboardEnhancementFlags, MouseButton, MouseEvent, MouseEventKind,
 };

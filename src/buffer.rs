@@ -542,7 +542,7 @@ mod tests {
         b.undo_step(false).unwrap();
         assert!(b.modified, "undoing past the save point must mark modified");
         b.undo_step(true).unwrap();
-        assert!(!b.modified || b.text.to_string() == "x ");
+        assert!(!b.modified || b.text == "x ");
     }
 
     #[test]
