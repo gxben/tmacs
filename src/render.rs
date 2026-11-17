@@ -576,7 +576,7 @@ fn draw_echo(ed: &mut Editor, scr: &mut Screen) {
 
 fn draw_completions(ed: &Editor, scr: &mut Screen) {
     let Some(c) = &ed.completions else { return };
-    if c.is_empty() {
+    if c.is_empty() || scr.h < 4 {
         return;
     }
     let w = scr.w as usize;
