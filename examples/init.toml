@@ -1,0 +1,88 @@
+# tmacs configuration — translation of ~/.emacs.cli.d/init.el
+# Copy to ~/.config/tmacs/init.toml (or point $TMACS_INIT at it).
+
+[settings]
+tab-width = 8
+indent-tabs-mode = false            # (setq-default indent-tabs-mode nil)
+fill-column = 70
+scroll-step = 1                     # (setq scroll-step 1)
+scroll-preserve-screen-position = true
+next-screen-context-lines = 1
+show-trailing-whitespace = true
+show-paren-mode = true
+transient-mark-mode = true
+search-highlight = true
+case-fold-search = false            # (setq-default case-fold-search nil)
+visible-bell = true
+display-time = true
+display-time-format = "[%-d/%-m]-[%H:%M]%L"   # %L = load average
+make-backup-files = false
+xterm-mouse-mode = true
+mouse-wheel-lines = 1               # wheel -> scroll-up-line / scroll-down-line
+cursor-color = "yellow"
+frame-title-format = "tmacs - %b (%f)"
+format-on-save = true               # master switch for before-save formatting
+kitty-keyboard = true               # enables C-<tab>, C-M-RET... where supported
+clipboard-osc52 = false             # copy kills to the system clipboard via OSC 52
+
+[faces]
+default = { fg = "wheat", bg = "DarkSlateGray" }
+region = { bg = "black" }
+highlight = { bg = "slateblue" }
+bold = { fg = "lightcoral" }
+italic = { fg = "Orchid" }
+underline = { fg = "seagreen3" }
+bold-italic = { fg = "orange" }
+font-lock-comment-face = { fg = "gray" }
+font-lock-string-face = { fg = "green3" }
+font-lock-function-name-face = { fg = "lightblue2" }
+font-lock-variable-name-face = { fg = "lightblue3" }
+font-lock-keyword-face = { fg = "orange" }
+font-lock-type-face = { fg = "palegreen" }
+
+[keys]
+# Already default in tmacs (from init.el), shown for reference:
+"M-g" = "goto-line"
+"C-x k" = "kill-current-buffer"
+"C-x p" = "insert-current-time-string"
+"C-z" = "other-window"
+"C-<tab>" = "other-window"
+"C-S-<tab>" = "other-window-backward"
+"S-<tab>" = "dabbrev-expand"
+"M-DEL" = "backward-kill-word"
+"<home>" = "beginning-of-line"
+"<end>" = "end-of-line"
+# "C-c f" = "format-buffer"
+
+# c-mode-hook: k&r, c-basic-offset 2, RET = newline-and-indent
+[[language]]
+name = "c"
+indent = 2
+
+# c++-mode-hook: k&r, c-basic-offset 4
+[[language]]
+name = "c++"
+indent = 4
+
+[[language]]
+name = "yaml"
+patterns = ['\.ya?ml$', '\.ya?ml\.j2$', '\.ya?ml\.gotmpl$']
+
+# terraform-format-on-save-mode
+[[language]]
+name = "terraform"
+patterns = ['\.tf$', '\.hcl$']
+formatter = ["terraform", "fmt", "-"]
+format-on-save = true
+
+# gofmt-before-save
+[[language]]
+name = "go"
+formatter = ["gofmt"]
+format-on-save = true
+
+# format-all-mode (prettier) for TypeScript
+[[language]]
+name = "typescript"
+formatter = ["prettier", "--stdin-filepath", "{file}"]
+format-on-save = true
