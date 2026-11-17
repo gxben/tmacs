@@ -16,6 +16,7 @@ mod lang;
 mod render;
 mod screen;
 mod search;
+mod session;
 mod syntax;
 mod text;
 mod view;
@@ -247,6 +248,13 @@ fn main() {
     syntax::preload();
     let mut ed = Editor::new(config, err);
     files::load_bookmarks(&mut ed);
+    if ed.cfg.savehist_mode {
+        session::restore_history(&mut ed);
+    }
+    let use_desktop = ed.cfg.desktop_save_mode && files.is_empty();
+    if use_desktop {
+        session::restore_desktop(&mut ed);
+    }
     let cwd = std::env::current_dir().unwrap_or_default();
     let n_files = files.len();
     for (i, (p, line, col)) in files.iter().enumerate() {
@@ -264,7 +272,7 @@ fn main() {
             ed.sel = w;
         }
     }
-    if n_files == 0 {
+    if n_files == 0 && !use_desktop {
         ed.message = None;
     }
     if let Some(e) = ed.init_error.take() {
@@ -364,6 +372,12 @@ fn main() {
         Ok(())
     })();
     term.restore();
+    if ed.cfg.savehist_mode {
+        session::save_history(&ed);
+    }
+    if use_desktop {
+        session::save_desktop(&ed);
+    }
     if let Err(e) = result {
         eprintln!("tmacs: {e}");
         std::process::exit(1);

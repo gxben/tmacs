@@ -14,6 +14,11 @@ Emacs (`emacs -nw`) with the configuration from `~/.emacs.cli.d/init.el`.
 - Kills and yanks share the system clipboard (`pbcopy`/`pbpaste` on macOS,
   OSC 52 over SSH, `wl-copy`/`xclip` on Linux), like Emacs'
   interprogram cut/paste.
+- `desktop-save-mode`: started without file arguments, tmacs reopens the
+  files (and positions) from the last session; `savehist-mode` keeps
+  minibuffer and search history (`~/.config/tmacs/desktop.toml`,
+  `history.toml`). Sessions started with files (e.g. as `$EDITOR`) don't
+  touch the desktop.
 - Mouse support (xterm-mouse-mode): click, drag to select, double/triple
   click, wheel scrolls one line.
 

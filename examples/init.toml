@@ -23,6 +23,8 @@ cursor-color = "yellow"
 frame-title-format = "tmacs - %b (%f)"
 format-on-save = true               # master switch for before-save formatting
 kitty-keyboard = true               # enables C-<tab>, C-M-RET... where supported
+desktop-save-mode = true            # reopen last files when started without arguments
+savehist-mode = true                # persist minibuffer/search history
 clipboard = "auto"                  # kills <-> system clipboard: auto|pbcopy|osc52|wayland|xclip|none
 
 [faces]

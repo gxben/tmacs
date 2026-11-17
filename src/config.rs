@@ -43,6 +43,10 @@ pub struct Settings {
     /// "wayland", "xclip" or "none".
     pub clipboard: String,
     pub yes_or_no_short: bool,
+    /// Reopen last session's files when started without file arguments.
+    pub desktop_save_mode: bool,
+    /// Persist minibuffer and search histories.
+    pub savehist_mode: bool,
 }
 
 impl Default for Settings {
@@ -81,6 +85,8 @@ impl Default for Settings {
             delete_selection_mode: false,
             clipboard: "auto".into(),
             yes_or_no_short: true,
+            desktop_save_mode: true,
+            savehist_mode: true,
         }
     }
 }
