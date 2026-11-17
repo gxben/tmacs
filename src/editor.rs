@@ -1052,6 +1052,7 @@ impl Editor {
         let bid = self.cur();
         let p = self.pt();
         self.bufm(bid).cmd_point = p;
+        self.begin_command();
         f(self);
         self.post_command(name);
     }
@@ -1096,11 +1097,21 @@ impl Editor {
         }
     }
 
+    /// Like Emacs resetting `deactivate-mark` before each command: only
+    /// changes made by this command may deactivate the mark.
+    fn begin_command(&mut self) {
+        for b in self.bufs.iter_mut().flatten() {
+            b.deactivate = false;
+        }
+    }
+
     pub fn self_insert(&mut self, c: char) {
         self.this_cmd = "self-insert-command".into();
         let bid = self.cur();
         let p = self.pt();
         self.bufm(bid).cmd_point = p;
+        self.keep_arg = false;
+        self.begin_command();
         crate::commands::self_insert(self, c);
         self.post_command("self-insert-command");
     }
