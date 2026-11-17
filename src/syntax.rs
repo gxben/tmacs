@@ -79,6 +79,18 @@ const SCOPE_FACES: &[(&str, &str)] = &[
     ("storage.type.ts", "font-lock-keyword-face"),
     ("storage.type.variable", "font-lock-keyword-face"),
     ("storage.type.function.arrow", "default"),
+    (
+        "meta.class.identifier storage.type",
+        "font-lock-keyword-face",
+    ),
+    (
+        "meta.interface.identifier storage.type",
+        "font-lock-keyword-face",
+    ),
+    (
+        "meta.enum.identifier storage.type",
+        "font-lock-keyword-face",
+    ),
     ("support.type", "font-lock-type-face"),
     ("support.class", "font-lock-type-face"),
     ("entity.name.type", "font-lock-type-face"),
@@ -510,5 +522,182 @@ mod bench {
         let n = text.len_lines() - 2;
         let _ = c.spans(&text, n, n, Duration::from_secs(60));
         eprintln!("parsed {} lines in {:?}", n, t.elapsed());
+    }
+}
+
+#[cfg(test)]
+mod languages {
+    use super::*;
+
+    fn faces_of(syntax: &str, src: &str) -> Vec<(String, &'static str)> {
+        let mut c = Cache::new(syntax).unwrap_or_else(|| panic!("no syntax {syntax}"));
+        let text = Rope::from_str(src);
+        let n = text.len_lines() - 1;
+        let sp = c.spans(&text, 0, n, Duration::from_secs(5));
+        let mut out = Vec::new();
+        for (l, spans) in sp.iter().enumerate() {
+            let line: Vec<char> = text.line(l).chars().collect();
+            for s in spans.iter() {
+                let word: String = line[s.start as usize..s.end as usize].iter().collect();
+                out.push((word.trim().to_string(), FACE_NAMES[s.face as usize]));
+            }
+        }
+        out
+    }
+
+    fn has(f: &[(String, &str)], word: &str, face: &str) -> bool {
+        f.iter().any(|(w, fc)| w.contains(word) && *fc == face)
+    }
+
+    #[test]
+    fn major_languages() {
+        let cases: &[(&str, &str, &[(&str, &str)])] = &[
+            (
+                "Python",
+                "# c\ndef foo(x):\n    return \"s\"\n",
+                &[
+                    ("# c", "font-lock-comment-face"),
+                    ("def", "font-lock-keyword-face"),
+                    ("foo", "font-lock-function-name-face"),
+                    ("\"s\"", "font-lock-string-face"),
+                ],
+            ),
+            (
+                "Rust",
+                "// c\nfn main() { let s = \"x\"; }\n",
+                &[
+                    ("// c", "font-lock-comment-face"),
+                    ("fn", "font-lock-keyword-face"),
+                    ("main", "font-lock-function-name-face"),
+                    ("let", "font-lock-keyword-face"),
+                ],
+            ),
+            (
+                "TypeScript",
+                "// c\nfunction f(a: number): string { return 'x'; }\n",
+                &[
+                    ("function", "font-lock-keyword-face"),
+                    ("f", "font-lock-function-name-face"),
+                    ("number", "font-lock-type-face"),
+                    ("'x'", "font-lock-string-face"),
+                ],
+            ),
+            (
+                "C",
+                "#include <stdio.h>\nint main(void) { return 0; }\n",
+                &[
+                    ("#include", "font-lock-preprocessor-face"),
+                    ("int", "font-lock-type-face"),
+                    ("main", "font-lock-function-name-face"),
+                    ("return", "font-lock-keyword-face"),
+                ],
+            ),
+            (
+                "YAML",
+                "# c\nkey: \"v\"\n",
+                &[
+                    ("# c", "font-lock-comment-face"),
+                    ("key", "font-lock-variable-name-face"),
+                    ("\"v\"", "font-lock-string-face"),
+                ],
+            ),
+            (
+                "Terraform",
+                "resource \"a\" \"b\" {\n  x = \"y\" # c\n}\n",
+                &[
+                    ("resource", "font-lock-keyword-face"),
+                    ("\"y\"", "font-lock-string-face"),
+                    ("# c", "font-lock-comment-face"),
+                ],
+            ),
+            (
+                "Bourne Again Shell (bash)",
+                "# c\nif [ -f x ]; then echo \"s\"; fi\n",
+                &[
+                    ("# c", "font-lock-comment-face"),
+                    ("if", "font-lock-keyword-face"),
+                    ("\"s\"", "font-lock-string-face"),
+                ],
+            ),
+            (
+                "JSON",
+                "{\"k\": \"v\", \"n\": true}\n",
+                &[
+                    ("\"v\"", "font-lock-string-face"),
+                    ("true", "font-lock-constant-face"),
+                ],
+            ),
+            (
+                "Markdown",
+                "# Title\n*it* **b**\n",
+                &[("Title", "header"), ("b", "bold")],
+            ),
+            (
+                "Dockerfile",
+                "FROM alpine\n# c\nRUN echo hi\n",
+                &[
+                    ("FROM", "font-lock-keyword-face"),
+                    ("# c", "font-lock-comment-face"),
+                ],
+            ),
+            (
+                "Java",
+                "class A { void f() { String s = \"x\"; } }\n",
+                &[
+                    ("class", "font-lock-keyword-face"),
+                    ("A", "font-lock-type-face"),
+                    ("\"x\"", "font-lock-string-face"),
+                ],
+            ),
+            (
+                "Lisp",
+                ";; c\n(defun foo () \"d\")\n",
+                &[
+                    (";; c", "font-lock-comment-face"),
+                    ("defun", "font-lock-keyword-face"),
+                ],
+            ),
+        ];
+        let mut failures = Vec::new();
+        for (syn, src, expects) in cases {
+            let f = faces_of(syn, src);
+            for (w, face) in *expects {
+                if !has(&f, w, face) {
+                    failures.push(format!("{syn}: {w:?} not {face}; got {f:?}"));
+                }
+            }
+        }
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    }
+}
+#[cfg(test)]
+mod dump {
+    #[test]
+    #[ignore]
+    fn dump_scopes() {
+        use syntect::parsing::{ParseState, ScopeStack};
+        let c = super::ctx();
+        let syn =
+            c.ss.find_syntax_by_name(&std::env::var("SYN").unwrap())
+                .unwrap();
+        let mut ps = ParseState::new(syn);
+        let line = std::env::var("SRC").unwrap() + "\n";
+        let ops = ps.parse_line(&line, &c.ss).unwrap();
+        let mut st = ScopeStack::new();
+        let mut last = 0;
+        for (i, op) in ops {
+            if i > last {
+                eprintln!(
+                    "{:?} => {:?}",
+                    &line[last..i],
+                    st.as_slice()
+                        .iter()
+                        .map(|s| s.build_string())
+                        .collect::<Vec<_>>()
+                );
+            }
+            last = i;
+            st.apply(&op).unwrap();
+        }
     }
 }
