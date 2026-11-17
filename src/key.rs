@@ -64,6 +64,14 @@ impl Key {
         let k = match ev.code {
             KeyCode::Char(c) => {
                 let mut c = c;
+                // Kitty keyboard protocol reports the unshifted key plus Shift
+                // (C-S-- for C-_, M-S-, for M-<): apply the US shift layer.
+                if shift && (ctrl || meta) {
+                    if let Some(s) = shifted(c) {
+                        c = s;
+                        shift = false;
+                    }
+                }
                 if ctrl {
                     // Legacy terminals encode C-\ C-] C-^ C-_ as C-4..C-7.
                     c = match c {
@@ -247,6 +255,13 @@ impl fmt::Display for Key {
     }
 }
 
+/// Shifted character of a US-layout key, for non-letters.
+fn shifted(c: char) -> Option<char> {
+    const PAIRS: &str = "1!2@3#4$5%6^7&8*9(0)-_=+[{]}\\|;:'\",<.>/?`~";
+    let v: Vec<char> = PAIRS.chars().collect();
+    v.chunks(2).find(|p| p[0] == c).map(|p| p[1])
+}
+
 pub fn seq_to_string(keys: &[Key]) -> String {
     keys.iter()
         .map(|k| k.to_string())
@@ -267,6 +282,21 @@ mod tests {
             let seq = Key::parse_seq(s).unwrap();
             assert_eq!(seq_to_string(&seq), s);
         }
+    }
+
+    #[test]
+    fn kitty_shifted_punctuation() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let ev = |c, m| {
+            Key::from_event(&KeyEvent::new(KeyCode::Char(c), m))
+                .unwrap()
+                .to_string()
+        };
+        assert_eq!(ev('-', KeyModifiers::CONTROL | KeyModifiers::SHIFT), "C-_");
+        assert_eq!(ev('7', KeyModifiers::CONTROL), "C-_");
+        assert_eq!(ev(',', KeyModifiers::ALT | KeyModifiers::SHIFT), "M-<");
+        assert_eq!(ev('5', KeyModifiers::ALT | KeyModifiers::SHIFT), "M-%");
+        assert_eq!(ev('A', KeyModifiers::CONTROL | KeyModifiers::SHIFT), "C-A");
     }
 
     #[test]
