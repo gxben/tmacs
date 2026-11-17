@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Benjamin Zores
+
 //! Major modes: detection, indentation rules, comment syntax, formatters.
 
 use crate::buffer::Buffer;

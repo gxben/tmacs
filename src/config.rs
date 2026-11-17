@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Benjamin Zores
+
 //! User configuration: `~/.config/tmacs/init.toml` (or `$TMACS_INIT`).
 
 use crate::lang::LangConfig;

@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Benjamin Zores
 # Generate the Homebrew formula for a release.
 #
 #   homebrew-formula.sh <version> <owner/repo> <SHA256SUMS file> > tmacs.rb
@@ -21,6 +23,7 @@ cat <<RUBY
 class Tmacs < Formula
   desc "Lightweight terminal text editor with Emacs key bindings"
   homepage "https://github.com/${repo}"
+  license "Apache-2.0"
   version "${version}"
 
   on_macos do
@@ -46,7 +49,7 @@ class Tmacs < Formula
   def install
     bin.install "tmacs"
     pkgshare.install "init.toml.example"
-    doc.install "README.md"
+    doc.install "README.md", "LICENSE"
   end
 
   def caveats

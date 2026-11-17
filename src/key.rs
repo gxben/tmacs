@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Benjamin Zores
+
 //! Key representation using Emacs notation (`C-x`, `M-f`, `C-M-<return>`...).
 
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};

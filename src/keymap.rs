@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Benjamin Zores
+
 //! Prefix keymaps and default Emacs bindings (plus the user's init.el ones).
 
 use crate::key::Key;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Benjamin Zores
+
 //! Headless end-to-end tests: key sequences go through the real dispatcher,
 //! keymaps and commands, and the resulting buffer/point is checked.
 //!

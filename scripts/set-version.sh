@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Benjamin Zores
 # Set the package version in Cargo.toml and Cargo.lock.
 # Used by semantic-release (prepareCmd) before the release commit.
 set -eu

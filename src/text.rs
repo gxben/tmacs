@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Benjamin Zores
+
 //! Text helpers: display widths, word/sexp/paragraph motion, visual rows.
 
 use crate::buffer::Buffer;

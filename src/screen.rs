@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Benjamin Zores
+
 //! Double-buffered terminal cell grid with minimal diff output.
 
 use crate::color::{self, Rgb};

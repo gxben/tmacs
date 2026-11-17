@@ -2,6 +2,10 @@
 name = "tmacs"
 version = "0.1.0"
 edition = "2024"
+description = "Lightweight terminal text editor with Emacs key bindings"
+license = "Apache-2.0"
+repository = "https://github.com/gxben/tmacs"
+readme = "README.md"
 
 [dependencies]
 chrono = "0.4.45"

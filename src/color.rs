@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Benjamin Zores
+
 //! Colors: X11/Emacs color names, hex parsing and 256-color fallback.
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]

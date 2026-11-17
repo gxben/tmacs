@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Benjamin Zores
+
 # tmacs — build, test and release helpers.
 # Run `make help` for the list of targets.
 
@@ -59,7 +62,7 @@ uninstall: ## Remove the installed binary
 
 package: release ## Release archive dist/tmacs_<version>_<os>_<arch>.tar.gz
 	rm -rf $(DISTDIR)/$(PKG) && mkdir -p $(DISTDIR)/$(PKG)
-	cp target/release/$(NAME) README.md $(DISTDIR)/$(PKG)/
+	cp target/release/$(NAME) README.md LICENSE $(DISTDIR)/$(PKG)/
 	cp examples/init.toml $(DISTDIR)/$(PKG)/init.toml.example
 	tar -C $(DISTDIR)/$(PKG) -czf $(DISTDIR)/$(PKG).tar.gz .
 	cd $(DISTDIR) && shasum -a 256 $(PKG).tar.gz > $(PKG).tar.gz.sha256

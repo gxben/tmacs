@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Benjamin Zores
+
 //! tmacs — a lightweight terminal Emacs replacement.
 
 #![allow(clippy::collapsible_if, clippy::rc_clone_in_vec_init)]

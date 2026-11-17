@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Benjamin Zores
+
 //! Files, buffers, minibuffer completion, dired, buffer menu, help, shell,
 //! format-on-save.
 

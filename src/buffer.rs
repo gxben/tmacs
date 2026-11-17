@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Benjamin Zores
+
 //! Text buffer: rope storage, markers, Emacs-style undo, narrowing.
 
 use ropey::Rope;

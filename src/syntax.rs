@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Benjamin Zores
+
 //! Syntax highlighting via syntect grammars, mapped onto Emacs font-lock faces.
 //!
 //! Parse state is checkpointed every `CHECKPOINT` lines and highlighted spans

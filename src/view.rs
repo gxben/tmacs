@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Benjamin Zores
+
 //! Window geometry: visual rows (continuation lines), vertical motion, scrolling.
 
 use crate::buffer::Buffer;

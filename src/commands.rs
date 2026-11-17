@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Benjamin Zores
+
 //! Interactive commands, named after their Emacs counterparts.
 
 use crate::editor::{Cmd, Completion, Editor, MINI, PromptKind, ReadKey, RegOp, Register};

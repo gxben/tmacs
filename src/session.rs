@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Benjamin Zores
+
 //! desktop-save-mode and savehist-mode: persist open files and histories.
 
 use crate::buffer::BufKind;
