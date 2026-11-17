@@ -17,6 +17,17 @@ replaces the user's `emacs -nw` setup (`~/.emacs.cli.d/init.el`).
   (`feat(scope):`, `fix(scope):`, `test:`, `docs:`, `build:`, `perf:`).
   Never push. Keep fixes and features in separate commits.
 
+## License headers
+
+Apache-2.0. Every source file starts with:
+
+```rust
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Benjamin Zores
+```
+
+(`#` comments in shell scripts and the Makefile). Add it to new files.
+
 ## Commands
 
 ```sh
@@ -40,7 +51,7 @@ make release   # target/release/tmacs
   `chore` = patch, `docs`/`test`/`build`/`ci` = no release.
 - Release asset names `tmacs_<version>_<os>_<arch>.tar.gz` are shared by
   the Makefile (`package`), the workflow and the formula script; change
-  them together. The archive contains `tmacs`, `README.md` and
+  them together. The archive contains `tmacs`, `README.md`, `LICENSE` and
   `init.toml.example`.
 - `ci.yml` mirrors `make fmt-check lint test`; keep the Makefile targets
   as the single source of truth for CI commands.

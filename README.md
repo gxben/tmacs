@@ -85,11 +85,12 @@ re-implemented natively and configured with a small TOML file.
 ### Homebrew (macOS, Linux)
 
 ```sh
-brew install <owner>/tap/tmacs
+brew install gxben/tap/tmacs
 ```
 
-`<owner>` is the GitHub account hosting this repository (the formula is
-published to `<owner>/homebrew-tap` on every release). The example config
+The formula is published to
+[gxben/homebrew-tap](https://github.com/gxben/homebrew-tap) on every
+release. The example config
 is installed to `$(brew --prefix)/share/tmacs/init.toml.example`.
 
 ### Prebuilt binaries
@@ -485,3 +486,12 @@ needs `main` to accept pushes from GitHub Actions. The first release is
 0.x).
 
 See [CLAUDE.md](CLAUDE.md) for the architecture and contribution notes.
+
+## License
+
+Copyright 2026 Benjamin Zores.
+
+Licensed under the [Apache License, Version 2.0](LICENSE). Unless required
+by applicable law or agreed to in writing, software distributed under the
+License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied.
