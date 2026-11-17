@@ -399,3 +399,32 @@ pub fn build(defs: &[(&str, &str)]) -> Keymap {
     }
     m
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn all_bound_commands_exist() {
+        let mut missing = Vec::new();
+        for table in [GLOBAL, MINIBUFFER, BUFFER_LIST, DIRED, SPECIAL] {
+            for (k, c) in table {
+                if crate::commands::lookup(c).is_none() {
+                    missing.push(format!("{k} -> {c}"));
+                }
+            }
+        }
+        assert!(missing.is_empty(), "unimplemented: {missing:?}");
+    }
+
+    #[test]
+    fn prefix_lookup() {
+        let m = build(GLOBAL);
+        let cx = Key::parse_seq("C-x").unwrap();
+        assert!(matches!(m.lookup(&cx), Lookup::Prefix));
+        let cxcf = Key::parse_seq("C-x C-f").unwrap();
+        assert!(matches!(m.lookup(&cxcf), Lookup::Cmd("find-file")));
+        let mg = Key::parse_seq("M-g").unwrap();
+        assert!(matches!(m.lookup(&mg), Lookup::Cmd("goto-line")));
+    }
+}
