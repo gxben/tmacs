@@ -6,13 +6,15 @@ PREFIX  ?= $(HOME)/.local
 BINDIR  ?= $(PREFIX)/bin
 NAME    := tmacs
 VERSION := $(shell sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
-TARGET  := $(shell rustc -vV | sed -n 's/^host: //p')
+OS      := $(shell uname -s | tr A-Z a-z)
+ARCH    := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
 DISTDIR := dist
-DIST    := $(DISTDIR)/$(NAME)-$(VERSION)-$(TARGET)
+# Release asset name, e.g. tmacs_1.2.0_darwin_arm64 (used by Homebrew)
+PKG     := $(NAME)_$(VERSION)_$(OS)_$(ARCH)
 
 .DEFAULT_GOAL := help
 .PHONY: help build release run test test-release bench lint fmt fmt-check check \
-        install uninstall dist tag clean
+        install uninstall package dist version tag clean
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-13s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -55,13 +57,19 @@ install: release ## Install to $(BINDIR) (PREFIX=~/.local)
 uninstall: ## Remove the installed binary
 	rm -f $(BINDIR)/$(NAME)
 
-dist: check release ## Release tarball in dist/
-	rm -rf $(DIST) && mkdir -p $(DIST)
-	cp target/release/$(NAME) README.md $(DIST)/
-	cp examples/init.toml $(DIST)/init.toml.example
-	tar -C $(DISTDIR) -czf $(DIST).tar.gz $(notdir $(DIST))
-	cd $(DISTDIR) && shasum -a 256 $(notdir $(DIST)).tar.gz > $(notdir $(DIST)).tar.gz.sha256
-	@echo "$(DIST).tar.gz"
+package: release ## Release archive dist/tmacs_<version>_<os>_<arch>.tar.gz
+	rm -rf $(DISTDIR)/$(PKG) && mkdir -p $(DISTDIR)/$(PKG)
+	cp target/release/$(NAME) README.md $(DISTDIR)/$(PKG)/
+	cp examples/init.toml $(DISTDIR)/$(PKG)/init.toml.example
+	tar -C $(DISTDIR)/$(PKG) -czf $(DISTDIR)/$(PKG).tar.gz .
+	cd $(DISTDIR) && shasum -a 256 $(PKG).tar.gz > $(PKG).tar.gz.sha256
+	@echo "$(DISTDIR)/$(PKG).tar.gz"
+
+dist: check package ## check, then package
+
+version: ## Set version: make version V=1.2.3
+	@test -n "$(V)" || { echo "usage: make version V=<x.y.z>"; exit 1; }
+	scripts/set-version.sh $(V)
 
 tag: check ## Create local git tag v$(VERSION)
 	@git diff --quiet || { echo "working tree not clean"; exit 1; }
