@@ -322,6 +322,15 @@ mod tests {
         }
     }
     #[test]
+    fn ansi256_fallback() {
+        assert_eq!(to_ansi256(Rgb(0, 0, 0)), 16);
+        assert_eq!(to_ansi256(Rgb(255, 255, 255)), 231);
+        assert_eq!(to_ansi256(Rgb(255, 0, 0)), 196);
+        let g = to_ansi256(Rgb(128, 128, 128));
+        assert!((232..=255).contains(&g));
+    }
+
+    #[test]
     fn parse_names() {
         assert_eq!(parse("DarkSlateGray"), Some(Rgb(0x2f, 0x4f, 0x4f)));
         assert_eq!(parse("wheat"), Some(Rgb(0xf5, 0xde, 0xb3)));

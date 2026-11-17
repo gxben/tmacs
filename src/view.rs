@@ -314,3 +314,75 @@ pub fn set_win_point(ed: &mut Editor, wid: WinId, p: usize) {
     let p = b.clamp(p);
     b.set_mpos(m, p);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn buf(s: &str) -> Buffer {
+        let mut b = Buffer::new("t", PathBuf::from("/"));
+        b.insert(0, s);
+        b
+    }
+
+    const G: Geo = Geo {
+        width: 4,
+        tab_width: 8,
+        truncate: false,
+    };
+
+    #[test]
+    fn vpos_and_rows_with_wrapping() {
+        let b = buf("abcdefghij\nxy");
+        assert_eq!(rows_of(&b, 0, G), vec![0, 4, 8]);
+        assert_eq!(vpos(&b, 5, G), (0, 1));
+        assert_eq!(vpos(&b, 11, G), (1, 0));
+        assert_eq!(next_row(&b, (0, 2), G), Some((1, 0)));
+        assert_eq!(prev_row(&b, (1, 0), G), Some((0, 2)));
+        assert_eq!(next_row(&b, (1, 0), G), None);
+    }
+
+    #[test]
+    fn x_and_pos_at_are_inverse() {
+        let b = buf("abcdefghij");
+        for p in 0..10 {
+            let (l, r) = vpos(&b, p, G);
+            assert_eq!(pos_at(&b, (l, r), x_of(&b, p, G), G), p);
+        }
+        // Can't land on the end of a continued row.
+        assert_eq!(pos_at(&b, (0, 0), 99, G), 3);
+    }
+
+    #[test]
+    fn tabs_count_display_columns() {
+        let b = buf("\tx");
+        let g = Geo {
+            width: 80,
+            tab_width: 8,
+            truncate: false,
+        };
+        assert_eq!(x_of(&b, 1, g), 8);
+        assert_eq!(pos_at(&b, (0, 0), 5, g), 0);
+    }
+
+    #[test]
+    fn rows_between_and_move_rows() {
+        let b = buf("a\nb\nc\nd");
+        assert_eq!(rows_between(&b, (0, 0), (3, 0), G, 10), Some(3));
+        assert_eq!(rows_between(&b, (0, 0), (3, 0), G, 2), None);
+        assert_eq!(move_rows(&b, (1, 0), 10, G), ((3, 0), 2));
+        assert_eq!(move_rows(&b, (1, 0), -10, G), ((0, 0), -1));
+    }
+
+    #[test]
+    fn narrowing_clips_lines() {
+        let mut b = buf("hello\nworld");
+        let s = b.new_marker(2, false);
+        let e = b.new_marker(8, true);
+        b.narrow = Some((s, e));
+        assert_eq!(line_span(&b, 0), (2, 5));
+        assert_eq!(line_span(&b, 1), (6, 8));
+        assert_eq!(first_line(&b), 0);
+    }
+}

@@ -51,9 +51,8 @@ fn dir() -> PathBuf {
         .unwrap_or_default()
 }
 
-fn write(name: &str, contents: &str) {
-    let d = dir();
-    let _ = std::fs::create_dir_all(&d);
+fn write(d: &Path, name: &str, contents: &str) {
+    let _ = std::fs::create_dir_all(d);
     let tmp = d.join(format!(".{name}.tmp"));
     if std::fs::write(&tmp, contents).is_ok() {
         let _ = std::fs::rename(&tmp, d.join(name));
@@ -62,6 +61,10 @@ fn write(name: &str, contents: &str) {
 
 /// Save open file buffers (most recent first) to the desktop file.
 pub fn save_desktop(ed: &Editor) {
+    save_desktop_in(ed, &dir());
+}
+
+fn save_desktop_in(ed: &Editor, d: &Path) {
     let mut buffers = Vec::new();
     // Selected window's buffer first, then MRU order.
     let mut order = vec![ed.cur()];
@@ -94,13 +97,17 @@ pub fn save_desktop(ed: &Editor) {
         }
     }
     if let Ok(s) = toml::to_string(&Desktop { buffers }) {
-        write("desktop.toml", &s);
+        write(d, "desktop.toml", &s);
     }
 }
 
 /// Reopen the buffers recorded in the desktop file.
 pub fn restore_desktop(ed: &mut Editor) {
-    let Ok(s) = std::fs::read_to_string(dir().join("desktop.toml")) else {
+    restore_desktop_in(ed, &dir());
+}
+
+fn restore_desktop_in(ed: &mut Editor, d: &Path) {
+    let Ok(s) = std::fs::read_to_string(d.join("desktop.toml")) else {
         return;
     };
     let Ok(d) = toml::from_str::<Desktop>(&s) else {
@@ -134,8 +141,12 @@ pub fn restore_desktop(ed: &mut Editor) {
 }
 
 pub fn save_history(ed: &Editor) {
+    save_history_in(ed, &dir());
+}
+
+fn save_history_in(ed: &Editor, d: &Path) {
     // Merge with what other sessions saved, newest first.
-    let mut h = load_history_file();
+    let mut h = load_history_file(d);
     for (k, v) in &ed.hist {
         let e = h.minibuffer.entry(k.to_string()).or_default();
         let mut merged = v.clone();
@@ -152,19 +163,23 @@ pub fn save_history(ed: &Editor) {
     h.search = merge(&ed.search_ring, &h.search);
     h.regexp_search = merge(&ed.regex_search_ring, &h.regexp_search);
     if let Ok(s) = toml::to_string(&h) {
-        write("history.toml", &s);
+        write(d, "history.toml", &s);
     }
 }
 
-fn load_history_file() -> History {
-    std::fs::read_to_string(dir().join("history.toml"))
+fn load_history_file(d: &Path) -> History {
+    std::fs::read_to_string(d.join("history.toml"))
         .ok()
         .and_then(|s| toml::from_str(&s).ok())
         .unwrap_or_default()
 }
 
 pub fn restore_history(ed: &mut Editor) {
-    let h = load_history_file();
+    restore_history_in(ed, &dir());
+}
+
+fn restore_history_in(ed: &mut Editor, d: &Path) {
+    let h = load_history_file(d);
     for (k, v) in h.minibuffer {
         if let Some(&name) = HIST_NAMES.iter().find(|n| **n == k) {
             ed.hist.insert(name, v);
@@ -172,4 +187,45 @@ pub fn restore_history(ed: &mut Editor) {
     }
     ed.search_ring = h.search;
     ed.regex_search_ring = h.regexp_search;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+
+    fn editor() -> Editor {
+        let mut c = Config::default();
+        c.settings.clipboard = "none".into();
+        let mut ed = Editor::new(c, None);
+        ed.resize(80, 24);
+        ed
+    }
+
+    #[test]
+    fn desktop_roundtrip_keeps_order_and_point() {
+        let d = std::env::temp_dir().join(format!("tmacs-session-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        let (a, b) = (d.join("a.txt"), d.join("b.txt"));
+        std::fs::write(&a, "aaaa\n").unwrap();
+        std::fs::write(&b, "bbbb\n").unwrap();
+        let mut ed = editor();
+        crate::files::open_path(&mut ed, &a, None);
+        ed.goto(2);
+        crate::files::open_path(&mut ed, &b, None);
+        ed.goto(3);
+        ed.push_history("file", "x");
+        save_desktop_in(&ed, &d);
+        save_history_in(&ed, &d);
+
+        let mut ed2 = editor();
+        restore_desktop_in(&mut ed2, &d);
+        restore_history_in(&mut ed2, &d);
+        assert_eq!(ed2.b().name, "b.txt");
+        assert_eq!(ed2.pt(), 3);
+        let other = ed2.other_buffer(ed2.cur());
+        assert_eq!(ed2.buf(other).name, "a.txt");
+        assert_eq!(ed2.hist.get("file").unwrap()[0], "x");
+    }
 }

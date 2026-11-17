@@ -214,3 +214,42 @@ impl Screen {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::face::Style;
+
+    #[test]
+    fn diff_only_redraws_changed_cells() {
+        let def = Style::fgbg("white", "black");
+        let mut scr = Screen::new(10, 2, def);
+        scr.truecolor = true;
+        scr.put_str(0, 0, "hello", Style::default(), 10);
+        let mut out = Vec::new();
+        scr.flush(&mut out).unwrap();
+        assert!(String::from_utf8_lossy(&out).contains("hello"));
+        // Same frame again: nothing printed.
+        scr.clear(def);
+        scr.put_str(0, 0, "hello", Style::default(), 10);
+        let mut out = Vec::new();
+        scr.flush(&mut out).unwrap();
+        assert!(!String::from_utf8_lossy(&out).contains("hello"));
+        // One change: only that cell.
+        scr.clear(def);
+        scr.put_str(0, 0, "hellO", Style::default(), 10);
+        let mut out = Vec::new();
+        scr.flush(&mut out).unwrap();
+        let s = String::from_utf8_lossy(&out);
+        assert!(s.contains('O') && !s.contains("hell"));
+    }
+
+    #[test]
+    fn wide_chars_take_two_cells() {
+        let mut scr = Screen::new(4, 1, Style::fgbg("white", "black"));
+        assert_eq!(scr.put(0, 0, '漢', Style::default()), 2);
+        // Doesn't fit at the last column: replaced by a blank.
+        assert_eq!(scr.put(3, 0, '漢', Style::default()), 1);
+        assert_eq!(scr.put_str(0, 0, "ab漢", Style::default(), 3), 2);
+    }
+}
