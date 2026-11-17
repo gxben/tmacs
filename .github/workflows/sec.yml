@@ -31,6 +31,16 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: none
+      # Code scanning (SARIF upload) needs a public repository or GitHub
+      # Advanced Security; on a private repository the results are kept as
+      # a workflow artifact instead.
       - uses: github/codeql-action/analyze@v4
         with:
           category: /language:${{ matrix.language }}
+          upload: ${{ github.event.repository.private && 'never' || 'always' }}
+          output: sarif-results
+      - uses: actions/upload-artifact@v7
+        if: github.event.repository.private
+        with:
+          name: codeql-${{ matrix.language }}-sarif
+          path: sarif-results
