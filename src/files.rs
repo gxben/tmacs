@@ -377,7 +377,11 @@ fn do_save(ed: &mut Editor, bid: BufId) {
     // before-save-hook: format on save
     let lang = ed.langs.list[ed.buf(bid).lang].clone();
     let mut fmt_msg = None;
-    if ed.cfg.format_on_save && lang.format_on_save {
+    let excluded = lang
+        .format_exclude
+        .iter()
+        .any(|r| r.is_match(&path.to_string_lossy()));
+    if ed.cfg.format_on_save && lang.format_on_save && !excluded {
         if let Some(cmd) = &lang.formatter {
             if let Err(e) = run_formatter(ed, bid, cmd) {
                 fmt_msg = Some(e);

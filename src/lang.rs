@@ -35,6 +35,8 @@ pub struct Lang {
     pub style: IndentStyle,
     pub formatter: Option<Vec<String>>,
     pub format_on_save: bool,
+    /// File names (regexps) never formatted on save, e.g. templated YAML.
+    pub format_exclude: Vec<Regex>,
     pub prog: bool,
     pub require_final_newline: bool,
 }
@@ -53,6 +55,7 @@ impl Lang {
             style: IndentStyle::Relative,
             formatter: None,
             format_on_save: false,
+            format_exclude: Vec::new(),
             prog: true,
             require_final_newline: true,
         }
@@ -75,6 +78,7 @@ pub struct LangConfig {
     pub indent_style: Option<IndentStyle>,
     pub formatter: Option<Vec<String>>,
     pub format_on_save: Option<bool>,
+    pub format_exclude: Option<Vec<String>>,
     pub require_final_newline: Option<bool>,
 }
 
@@ -271,16 +275,26 @@ pub fn default_formatter(name: &str) -> Option<(Vec<&'static str>, bool)> {
     Some(match name {
         "go" => (vec!["gofmt"], true),
         "terraform" => (vec!["terraform", "fmt", "-"], true),
-        "typescript" | "tsx" => (vec!["prettier", "--stdin-filepath", "{file}"], true),
-        "javascript" | "css" | "scss" | "less" | "html" | "vue" | "svelte" | "graphql" | "json"
-        | "markdown" => (vec!["prettier", "--stdin-filepath", "{file}"], false),
-        "yaml" => (vec!["prettier", "--stdin-filepath", "{file}"], false),
-        "rust" => (vec!["rustfmt", "--emit", "stdout", "--quiet"], false),
-        "python" => (vec!["black", "-q", "-"], false),
-        "c" | "c++" | "objc" | "java" | "proto" | "csharp" => {
-            (vec!["clang-format", "--assume-filename={file}"], false)
+        // format-all style: prettier for the web/data languages
+        "typescript" | "tsx" | "javascript" | "css" | "scss" | "less" | "html" | "vue"
+        | "svelte" | "graphql" | "json" | "markdown" | "yaml" => {
+            (vec!["prettier", "--stdin-filepath", "{file}"], true)
         }
-        "sh" => (vec!["shfmt", "-filename", "{file}"], false),
+        "rust" => (
+            vec![
+                "rustfmt",
+                "--edition",
+                "2024",
+                "--emit",
+                "stdout",
+                "--quiet",
+            ],
+            true,
+        ),
+        "python" => (vec!["black", "-q", "-"], true),
+        "c" | "c++" | "objc" => (vec!["clang-format", "--assume-filename={file}"], true),
+        "java" | "proto" | "csharp" => (vec!["clang-format", "--assume-filename={file}"], false),
+        "sh" => (vec!["shfmt", "-filename", "{file}"], true),
         "lua" => (vec!["stylua", "-"], false),
         "nix" => (vec!["nixfmt"], false),
         "zig" => (vec!["zig", "fmt", "--stdin"], false),
@@ -315,6 +329,10 @@ impl Langs {
             if let Some((cmd, on)) = default_formatter(name) {
                 l.formatter = Some(cmd.into_iter().map(String::from).collect());
                 l.format_on_save = on;
+            }
+            if name == "yaml" {
+                // Helm/Ansible templates are not valid YAML for prettier.
+                l.format_exclude = vec![Regex::new(r"\.(gotmpl|j2|tpl)$").unwrap()];
             }
             list.push(l);
         }
@@ -386,6 +404,15 @@ impl Langs {
             }
             if let Some(v) = c.require_final_newline {
                 l.require_final_newline = v;
+            }
+            if let Some(v) = &c.format_exclude {
+                l.format_exclude.clear();
+                for p in v {
+                    match Regex::new(&p.replace("\\'", "$")) {
+                        Ok(r) => l.format_exclude.push(r),
+                        Err(e) => errors.push(format!("bad format-exclude {p}: {e}")),
+                    }
+                }
             }
             for p in c.patterns.iter().flatten() {
                 // Accept Emacs regex flavour: \\' end anchor, \\. literal dot.

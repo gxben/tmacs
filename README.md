@@ -59,12 +59,15 @@ Emacs `\\'` anchors accepted), `syntax` (syntect grammar name), `mode-name`,
 `indent`, `tabs`, `tab-width`, `indent-style` (`braces`, `python`, `yaml`,
 `lisp`, `shell`, `relative`), `comment-start`, `comment-end`, `formatter`
 (argv, `{file}` is replaced by the file path; the buffer is sent on stdin),
-`format-on-save`, `require-final-newline`.
+`format-on-save`, `format-exclude` (file-name regexps), `require-final-newline`.
 
-Format on save is enabled by default for Go, Terraform/HCL and TypeScript
-(the hooks in `init.el`); other languages have a formatter configured that
-runs with `M-x format-buffer`, toggle per mode with
-`M-x toggle-format-on-save`.
+Format on save (like `format-all-mode`) runs for Go (`gofmt`), Terraform/HCL
+(`terraform fmt`), Rust (`rustfmt`), Python (`black`), shell (`shfmt`),
+C/C++ (`clang-format`) and TypeScript/JavaScript/JSON/YAML/Markdown/CSS/HTML
+(`prettier`). Templated YAML (`.gotmpl`, `.j2`, `.tpl`) is never formatted
+(`format-exclude`). A missing formatter or a formatter error is reported in
+the echo area and the file is saved unformatted. Use `M-x format-buffer` to
+format manually and `M-x toggle-format-on-save` to toggle per mode.
 
 ## Key bindings
 
