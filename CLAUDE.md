@@ -29,6 +29,22 @@ make release   # target/release/tmacs
 
 `cargo fmt` before committing; clippy must stay at zero warnings.
 
+## Releases and CI
+
+- Never edit the version by hand: `.github/workflows/release.yml`
+  (manual dispatch) runs semantic-release, which derives the version from
+  commit types, runs `scripts/set-version.sh`, updates `CHANGELOG.md`, tags
+  `vX.Y.Z`, builds `make package` archives for linux/darwin × amd64/arm64
+  and publishes the Homebrew formula (`scripts/homebrew-formula.sh`) to
+  the tap. Commit types therefore matter: `feat` = minor, `fix`/`perf`/
+  `chore` = patch, `docs`/`test`/`build`/`ci` = no release.
+- Release asset names `tmacs_<version>_<os>_<arch>.tar.gz` are shared by
+  the Makefile (`package`), the workflow and the formula script; change
+  them together. The archive contains `tmacs`, `README.md` and
+  `init.toml.example`.
+- `ci.yml` mirrors `make fmt-check lint test`; keep the Makefile targets
+  as the single source of truth for CI commands.
+
 ## Architecture (src/)
 
 | Module | Role |

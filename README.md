@@ -82,6 +82,25 @@ re-implemented natively and configured with a small TOML file.
 
 ## Install
 
+### Homebrew (macOS, Linux)
+
+```sh
+brew install <owner>/tap/tmacs
+```
+
+`<owner>` is the GitHub account hosting this repository (the formula is
+published to `<owner>/homebrew-tap` on every release). The example config
+is installed to `$(brew --prefix)/share/tmacs/init.toml.example`.
+
+### Prebuilt binaries
+
+Each [GitHub release](../../releases) has
+`tmacs_<version>_{darwin,linux}_{amd64,arm64}.tar.gz` archives and a
+`tmacs_<version>_SHA256SUMS` file. Linux binaries are built on Ubuntu
+22.04 (glibc 2.35+).
+
+### From source
+
 Requires a Rust toolchain (1.85+, edition 2024).
 
 ```sh
@@ -416,9 +435,53 @@ make lint        # clippy, warnings are errors
 make check       # fmt-check + lint + test
 make release     # optimized binary in target/release/
 make install     # install to ~/.local/bin (PREFIX=...)
-make dist        # dist/tmacs-<version>-<target>.tar.gz + .sha256
-make tag         # local git tag v<version>
+make package     # dist/tmacs_<version>_<os>_<arch>.tar.gz + .sha256
+make dist        # check + package
+make version V=1.2.3   # bump Cargo.toml/Cargo.lock (release CI does this)
 make bench BENCH_FILE=big.go   # syntax highlighting throughput
 ```
+
+### Continuous integration
+
+| Workflow | Trigger | What it does |
+| --- | --- | --- |
+| `ci.yml` | push/PR on `main` | rustfmt, clippy (`-D warnings`), tests and release build on Linux amd64/arm64 and macOS |
+| `sec.yml` | push/PR, weekly | CodeQL analysis of the Rust code and the workflows |
+| `vuln.yml` | `Cargo.*` changes, weekly | `cargo audit` against the RustSec advisory database |
+| `release.yml` | manual (Actions › Trigger Release › Run workflow) | release pipeline below |
+
+### Releasing
+
+Releases are cut from `main` by running the **Trigger Release** workflow:
+
+1. [semantic-release](https://semantic-release.gitbook.io/) reads the
+   Conventional Commits since the last `v*` tag: `feat` → minor,
+   `fix`/`perf`/`chore` → patch, `!`/`BREAKING CHANGE` → major (`docs`,
+   `test`, `build`, `ci` don't release). Scopes (`feat(dired): …`) are
+   supported.
+2. It sets the version in `Cargo.toml`/`Cargo.lock`
+   (`scripts/set-version.sh`), updates `CHANGELOG.md`, commits
+   `chore: version X.Y.Z [skip ci]`, tags `vX.Y.Z` and creates the GitHub
+   release with generated notes.
+3. Binaries are built with `make package` on Linux (amd64, arm64) and
+   macOS (Intel, Apple Silicon), smoke-tested, and attached to the release
+   with a `tmacs_X.Y.Z_SHA256SUMS` file.
+4. `scripts/homebrew-formula.sh` renders `Formula/tmacs.rb` from the
+   checksums and pushes it to the tap repository.
+
+Repository setup:
+
+| Kind | Name | Purpose |
+| --- | --- | --- |
+| secret | `PAT_HOMEBREW_TAP_RELEASER` | token with `contents: write` on the tap repo (formula push is skipped with a warning when unset) |
+| variable | `HOMEBREW_TAP_REPO` | optional, tap repository (default `<owner>/homebrew-tap`) |
+| variable | `RELEASE_BOT_CLIENT_ID` | optional GitHub App client id, to push the release commit through branch protection |
+| secret | `RELEASE_BOT_PRIVATE_KEY` | private key of that GitHub App |
+
+Create the tap once: an empty `<owner>/homebrew-tap` repository on
+GitHub. Without the GitHub App, the workflow uses `GITHUB_TOKEN`, which
+needs `main` to accept pushes from GitHub Actions. The first release is
+`1.0.0` unless a `v0.x.y` tag exists (e.g. `git tag v0.1.0` to start in
+0.x).
 
 See [CLAUDE.md](CLAUDE.md) for the architecture and contribution notes.
