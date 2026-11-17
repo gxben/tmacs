@@ -8,6 +8,7 @@ use ropey::Rope;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::OnceLock;
+use std::time::{Duration, Instant};
 use syntect::highlighting::{
     Color, HighlightIterator, HighlightState, Highlighter, ScopeSelectors, StyleModifier, Theme,
     ThemeItem, ThemeSettings,
@@ -16,6 +17,8 @@ use syntect::parsing::{ParseState, ScopeStack, SyntaxSet};
 
 const CHECKPOINT: usize = 32;
 const MAX_LINE_LEN: usize = 10_000;
+/// Lines of context parsed before the window when approximating.
+const APPROX_CONTEXT: usize = 200;
 
 /// Face ids encoded in theme colors (`r` channel).
 pub const F_DEFAULT: u8 = 0;
@@ -222,6 +225,8 @@ pub struct Cache {
     spans: Vec<Option<Spans>>,
     nlines: usize,
     failed: bool,
+    /// Line for which an exact parse state is wanted (background target).
+    want: usize,
 }
 
 impl Cache {
@@ -238,6 +243,7 @@ impl Cache {
             spans: Vec::new(),
             nlines: 0,
             failed: false,
+            want: 0,
         })
     }
 
@@ -295,60 +301,100 @@ impl Cache {
         Some(out)
     }
 
-    /// Highlight spans for lines `first..=last`.
-    pub fn spans(&mut self, text: &Rope, first: usize, last: usize) -> Vec<Spans> {
+    /// Advance exact checkpoints towards `self.want` until `deadline`.
+    /// Returns true when the checkpoint needed for `want` is available.
+    pub fn advance(&mut self, text: &Rope, deadline: Instant) -> bool {
+        let nlines = text.len_lines();
+        if self.nlines != nlines {
+            self.invalidate(0, nlines);
+        }
+        let k_target = self.want.min(nlines.saturating_sub(1)) / CHECKPOINT;
+        while self.valid <= k_target {
+            if self.failed {
+                return true;
+            }
+            let k = self.valid - 1;
+            let mut st = self.states[k].clone();
+            for l in k * CHECKPOINT..((k + 1) * CHECKPOINT).min(nlines) {
+                if Self::parse_line(&mut st, &Self::line_str(text, l), false).is_none() {
+                    self.failed = true;
+                    return true;
+                }
+            }
+            self.store_checkpoint(k + 1, st);
+            if Instant::now() >= deadline && self.valid <= k_target {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Exact fontification still needs background work.
+    pub fn pending(&self) -> bool {
+        !self.failed && self.valid <= self.want.min(self.nlines.saturating_sub(1)) / CHECKPOINT
+    }
+
+    /// Highlight spans for lines `first..=last`. If the exact parse state is
+    /// too far away to compute within `budget`, an approximation (parsing
+    /// from a little before `first`) is returned and the exact state is
+    /// computed later via `advance` (like jit-lock's stealth fontification).
+    pub fn spans(
+        &mut self,
+        text: &Rope,
+        first: usize,
+        last: usize,
+        budget: Duration,
+    ) -> Vec<Spans> {
         let nlines = text.len_lines();
         let last = last.min(nlines.saturating_sub(1));
         if self.nlines != nlines {
             self.invalidate(0, nlines);
         }
+        let empty = || vec![Rc::new(Vec::new()); last.saturating_sub(first) + 1];
         if self.failed || first > last {
-            return vec![Rc::new(Vec::new()); last.saturating_sub(first) + 1];
+            return empty();
         }
-        let need_all_cached = (first..=last).all(|l| matches!(self.spans.get(l), Some(Some(_))));
-        if need_all_cached {
+        if (first..=last).all(|l| matches!(self.spans.get(l), Some(Some(_)))) {
             return (first..=last)
                 .map(|l| self.spans[l].clone().unwrap())
                 .collect();
         }
-        // Advance checkpoints up to `first`.
-        let k_target = first / CHECKPOINT;
-        while self.valid <= k_target {
-            let k = self.valid - 1;
-            let mut st = self.states[k].clone();
-            for l in k * CHECKPOINT..(k + 1) * CHECKPOINT {
-                if l >= nlines {
-                    break;
-                }
-                if Self::parse_line(&mut st, &Self::line_str(text, l), false).is_none() {
-                    self.failed = true;
-                    return vec![Rc::new(Vec::new()); last - first + 1];
-                }
-            }
-            self.store_checkpoint(k + 1, st);
+        self.want = first;
+        let exact = self.advance(text, Instant::now() + budget);
+        if self.failed {
+            return empty();
         }
-        let k = k_target.min(self.valid - 1);
-        let mut st = self.states[k].clone();
+        let k_target = first / CHECKPOINT;
+        let (start, mut st) = if exact {
+            let k = k_target.min(self.valid - 1);
+            (k * CHECKPOINT, self.states[k].clone())
+        } else {
+            let from = first.saturating_sub(APPROX_CONTEXT);
+            let k = from / CHECKPOINT;
+            if k < self.valid {
+                (k * CHECKPOINT, self.states[k].clone())
+            } else {
+                (from, self.states[0].clone())
+            }
+        };
         let mut out = Vec::with_capacity(last - first + 1);
-        for l in k * CHECKPOINT..=last {
-            if l % CHECKPOINT == 0 && l / CHECKPOINT > k && l / CHECKPOINT >= self.valid {
+        for l in start..=last {
+            if exact && l % CHECKPOINT == 0 && l / CHECKPOINT >= self.valid {
                 self.store_checkpoint(l / CHECKPOINT, st.clone());
             }
             let want = l >= first;
             let Some(sp) = Self::parse_line(&mut st, &Self::line_str(text, l), want) else {
                 self.failed = true;
-                while out.len() < last - first + 1 {
-                    out.push(Rc::new(Vec::new()));
-                }
-                return out;
+                return empty();
             };
             if want {
                 let sp = Rc::new(sp);
-                if self.spans.len() <= l {
-                    self.spans.resize(l + 1, None);
+                if exact {
+                    if self.spans.len() <= l {
+                        self.spans.resize(l + 1, None);
+                    }
+                    self.spans[l] = Some(sp.clone());
                 }
-                // Only cache when the state before this line is trustworthy.
-                self.spans[l] = Some(sp.clone());
                 out.push(sp);
             }
         }
@@ -379,7 +425,7 @@ mod tests {
     fn go_keywords_and_strings() {
         let mut c = Cache::new("Go").unwrap();
         let text = Rope::from_str("package main\n\n// hi\nfunc main() { x := \"s\" }\n");
-        let sp = c.spans(&text, 0, 3);
+        let sp = c.spans(&text, 0, 3, Duration::from_secs(5));
         let faces = |l: usize| {
             sp[l]
                 .iter()
@@ -404,10 +450,10 @@ mod tests {
     fn invalidation_multiline_comment() {
         let mut c = Cache::new("C").unwrap();
         let mut text = Rope::from_str("int a;\nint b;\n");
-        let _ = c.spans(&text, 0, 1);
+        let _ = c.spans(&text, 0, 1, Duration::from_secs(5));
         text.insert(0, "/*\n");
         c.invalidate(0, text.len_lines());
-        let sp = c.spans(&text, 1, 2);
+        let sp = c.spans(&text, 1, 2, Duration::from_secs(5));
         assert!(
             sp[0]
                 .iter()
@@ -420,8 +466,49 @@ mod tests {
         let mut c = Cache::new("Rust").unwrap();
         let src: String = (0..500).map(|i| format!("let x{i} = \"{i}\";\n")).collect();
         let text = Rope::from_str(&src);
-        let sp = c.spans(&text, 400, 401);
+        let sp = c.spans(&text, 400, 401, Duration::from_secs(5));
         assert!(!sp[0].is_empty());
         assert!(c.states.len() > 10);
+    }
+
+    #[test]
+    fn approximate_then_exact() {
+        let mut c = Cache::new("C").unwrap();
+        let src: String = std::iter::once("/*\n".to_string())
+            .chain((0..5000).map(|i| format!("int x{i};\n")))
+            .collect();
+        let text = Rope::from_str(&src);
+        // Zero budget: approximation (comment opener is out of context).
+        let sp = c.spans(&text, 4000, 4000, Duration::ZERO);
+        assert!(c.pending());
+        assert!(
+            sp[0]
+                .iter()
+                .all(|s| FACE_NAMES[s.face as usize] != "font-lock-comment-face")
+        );
+        while !c.advance(&text, Instant::now() + Duration::from_millis(50)) {}
+        assert!(!c.pending());
+        let sp = c.spans(&text, 4000, 4000, Duration::ZERO);
+        assert!(
+            sp[0]
+                .iter()
+                .all(|s| FACE_NAMES[s.face as usize] == "font-lock-comment-face")
+        );
+    }
+}
+
+#[cfg(test)]
+mod bench {
+    use super::*;
+    #[test]
+    #[ignore]
+    fn parse_speed() {
+        let src = std::fs::read_to_string(std::env::var("BENCH_FILE").unwrap()).unwrap();
+        let text = Rope::from_str(&src);
+        let mut c = Cache::new("Go").unwrap();
+        let t = std::time::Instant::now();
+        let n = text.len_lines() - 2;
+        let _ = c.spans(&text, n, n, Duration::from_secs(60));
+        eprintln!("parsed {} lines in {:?}", n, t.elapsed());
     }
 }

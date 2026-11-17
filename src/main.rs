@@ -328,7 +328,16 @@ fn main() {
                     title = t;
                 }
             }
-            if !event::poll(ed.next_timeout())? {
+            let pending = ed.fontify_pending();
+            let timeout = if pending {
+                Duration::ZERO
+            } else {
+                ed.next_timeout()
+            };
+            if !event::poll(timeout)? {
+                if pending {
+                    ed.fontify_step(Duration::from_millis(30));
+                }
                 continue;
             }
             loop {

@@ -196,7 +196,7 @@ fn spans_for(ed: &mut Editor, wid: WinId, first: usize, last: usize) -> Vec<Span
         cache.invalidate(b.dirty_line, b.text.len_lines());
         b.dirty_line = usize::MAX;
     }
-    let sp = cache.spans(&b.text, first, last);
+    let sp = cache.spans(&b.text, first, last, std::time::Duration::from_millis(20));
     b.syntax = Some(cache);
     sp
 }

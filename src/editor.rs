@@ -1399,6 +1399,34 @@ impl Editor {
         t
     }
 
+    /// Some buffer still needs background (stealth) fontification.
+    pub fn fontify_pending(&self) -> bool {
+        self.bufs
+            .iter()
+            .flatten()
+            .any(|b| b.syntax.as_ref().is_some_and(|c| c.pending()))
+    }
+
+    /// Do a slice of background fontification work.
+    pub fn fontify_step(&mut self, budget: Duration) {
+        let deadline = Instant::now() + budget;
+        for b in self.bufs.iter_mut().flatten() {
+            if let Some(mut cache) = b.syntax.take() {
+                if b.dirty_line != usize::MAX {
+                    cache.invalidate(b.dirty_line, b.text.len_lines());
+                    b.dirty_line = usize::MAX;
+                }
+                if cache.pending() {
+                    cache.advance(&b.text, deadline);
+                }
+                b.syntax = Some(cache);
+            }
+            if Instant::now() >= deadline {
+                break;
+            }
+        }
+    }
+
     pub fn tick(&mut self) {
         if let Some(b) = self.bell {
             if Instant::now() >= b {
