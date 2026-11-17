@@ -458,7 +458,7 @@ fn isearch_add(ed: &mut Editor, s: &str) {
     is.string.push_str(s);
     // The match may extend in place: search again from its start.
     let from = is.found.map(|(st, _)| st).unwrap_or(is.origin);
-    if is.failing {
+    if is.failing && !is.regex {
         isearch_message(ed);
         ed.ding();
         return;
