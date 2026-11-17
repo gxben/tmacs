@@ -26,8 +26,16 @@ pub fn redisplay(ed: &mut Editor, scr: &mut Screen) {
     draw_echo(ed, scr);
     draw_completions(ed, scr);
     if ed.bell.is_some() {
-        for y in 0..scr.h {
-            for x in 0..scr.w {
+        // Visible bell: briefly invert the selected window's mode line only
+        // (a full-screen flash is too aggressive).
+        let wid = if ed.sel == MINI {
+            ed.mini.as_ref().map(|m| m.ret_win).unwrap_or(1)
+        } else {
+            ed.sel
+        };
+        if let Some(Some(w)) = ed.wins.get(wid) {
+            let y = w.y + w.h - 1;
+            for x in w.x..w.x + w.w {
                 scr.set_style(
                     x,
                     y,
