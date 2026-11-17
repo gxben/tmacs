@@ -194,6 +194,9 @@ pub fn open_path(ed: &mut Editor, path: &Path, line: Option<usize>) {
     match visit(ed, path) {
         Ok(b) => {
             ed.switch_to(b);
+            if ed.b().kind == BufKind::Dired {
+                dired_move_to_filename(ed);
+            }
             if let Some(l) = line {
                 commands::goto_line_n(ed, l as i64);
                 let p = ed.pt();
@@ -1132,11 +1135,20 @@ fn fill_dired(ed: &mut Editor, bid: BufId, dir: &Path) {
             ed.error(format!("Reading directory: {e}"));
         }
     }
-    let mut lines = vec![format!("  {}:", dir.display())];
-    let mut entries = vec![String::new()];
+    struct Row {
+        mode: String,
+        nlink: u64,
+        owner: String,
+        group: String,
+        size: u64,
+        date: String,
+        name: String,
+        link: Option<String>,
+        path: PathBuf,
+    }
+    let mut rows = Vec::new();
     for (name, path) in names {
-        let md = std::fs::symlink_metadata(&path);
-        let line = match md {
+        match std::fs::symlink_metadata(&path) {
             Ok(m) => {
                 let is_link = m.file_type().is_symlink();
                 let is_dir = path.is_dir();
@@ -1144,28 +1156,66 @@ fn fill_dired(ed: &mut Editor, bid: BufId, dir: &Path) {
                     .modified()
                     .ok()
                     .map(chrono::DateTime::<chrono::Local>::from);
-                let date = mtime
-                    .map(|d| d.format("%b %e %H:%M").to_string())
-                    .unwrap_or_default();
-                let mut l = format!(
-                    "  {} {:>3} {:>9} {} {}",
-                    fmt_mode(m.mode(), is_dir && !is_link, is_link),
-                    m.nlink(),
-                    m.size(),
-                    date,
-                    name
-                );
-                if is_link {
-                    if let Ok(t) = std::fs::read_link(&path) {
-                        l.push_str(&format!(" -> {}", t.display()));
-                    }
-                }
-                l
+                rows.push(Row {
+                    mode: fmt_mode(m.mode(), is_dir && !is_link, is_link),
+                    nlink: m.nlink(),
+                    owner: user_name(m.uid()),
+                    group: group_name(m.gid()),
+                    size: m.size(),
+                    date: mtime
+                        .map(|d| d.format("%b %e %H:%M").to_string())
+                        .unwrap_or_default(),
+                    name,
+                    link: if is_link {
+                        std::fs::read_link(&path)
+                            .ok()
+                            .map(|t| t.display().to_string())
+                    } else {
+                        None
+                    },
+                    path,
+                });
             }
-            Err(_) => format!("  ?????????? {name}"),
-        };
-        lines.push(line);
-        entries.push(path.to_string_lossy().to_string());
+            Err(_) => rows.push(Row {
+                mode: "??????????".into(),
+                nlink: 0,
+                owner: "?".into(),
+                group: "?".into(),
+                size: 0,
+                date: String::new(),
+                name,
+                link: None,
+                path,
+            }),
+        }
+    }
+    let wo = rows.iter().map(|r| r.owner.len()).max().unwrap_or(1);
+    let wg = rows.iter().map(|r| r.group.len()).max().unwrap_or(1);
+    let ws = rows
+        .iter()
+        .map(|r| r.size.to_string().len())
+        .max()
+        .unwrap_or(1);
+    let wn = rows
+        .iter()
+        .map(|r| r.nlink.to_string().len())
+        .max()
+        .unwrap_or(1);
+    let mut lines = vec![format!("  {}:", dir.display())];
+    let mut entries = vec![String::new()];
+    let mut cols = vec![0];
+    for r in rows {
+        let prefix = format!(
+            "  {} {:>wn$} {:<wo$} {:<wg$} {:>ws$} {} ",
+            r.mode, r.nlink, r.owner, r.group, r.size, r.date
+        );
+        cols.push(prefix.chars().count());
+        let mut l = prefix + &r.name;
+        if let Some(t) = r.link {
+            l.push_str(&format!(" -> {t}"));
+        }
+        lines.push(l);
+        entries.push(r.path.to_string_lossy().to_string());
     }
     let text = lines.join("\n") + "\n";
     let b = ed.bufm(bid);
@@ -1177,6 +1227,7 @@ fn fill_dired(ed: &mut Editor, bid: BufId, dir: &Path) {
     b.read_only = true;
     b.modified = false;
     b.entries = entries;
+    b.entry_cols = cols;
     b.dir = dir.to_path_buf();
 }
 
@@ -1214,25 +1265,37 @@ fn dired_entry(ed: &Editor) -> Option<PathBuf> {
 
 fn dired_move_to_filename(ed: &mut Editor) {
     let line = ed.b().line_of(ed.pt());
-    let t = ed.b().line_text(line);
-    // filename starts after the time field (5th whitespace-separated group after perms)
-    let mut fields = 0;
-    let mut prev_ws = true;
-    let mut col = None;
-    for (i, c) in t.chars().enumerate() {
-        let ws = c == ' ';
-        if !ws && prev_ws {
-            fields += 1;
-            if fields == 7 {
-                col = Some(i);
-                break;
-            }
+    if let Some(&c) = ed.b().entry_cols.get(line) {
+        if c > 0 {
+            let p = ed.b().line_start(line) + c;
+            ed.goto(p);
         }
-        prev_ws = ws;
     }
-    if let Some(c) = col {
-        let p = ed.b().line_start(line) + c;
-        ed.goto(p);
+}
+
+fn user_name(uid: u32) -> String {
+    // SAFETY: getpwuid returns a pointer to static storage or null.
+    unsafe {
+        let pw = libc::getpwuid(uid);
+        if pw.is_null() {
+            return uid.to_string();
+        }
+        std::ffi::CStr::from_ptr((*pw).pw_name)
+            .to_string_lossy()
+            .into_owned()
+    }
+}
+
+fn group_name(gid: u32) -> String {
+    // SAFETY: getgrgid returns a pointer to static storage or null.
+    unsafe {
+        let gr = libc::getgrgid(gid);
+        if gr.is_null() {
+            return gid.to_string();
+        }
+        std::ffi::CStr::from_ptr((*gr).gr_name)
+            .to_string_lossy()
+            .into_owned()
     }
 }
 
@@ -1665,6 +1728,9 @@ fn accept(ed: &mut Editor, m: Mini, v: String) {
                     if read_only {
                         ed.bm().read_only = true;
                     }
+                    if ed.b().kind == BufKind::Dired {
+                        dired_move_to_filename(ed);
+                    }
                 }
                 Err(e) => ed.error(e),
             }
@@ -1823,6 +1889,7 @@ fn accept(ed: &mut Editor, m: Mini, v: String) {
             } else {
                 ed.switch_to(b);
             }
+            dired_move_to_filename(ed);
         }
         PromptKind::DescribeFunction => {
             let text = format!("{v} is an interactive command.\n\n{}\n", commands::doc(&v));

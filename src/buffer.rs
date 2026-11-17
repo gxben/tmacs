@@ -73,6 +73,8 @@ pub struct Buffer {
     pub overwrite: bool,
     /// Entries for special buffers (buffer list, dired): one per line.
     pub entries: Vec<String>,
+    /// Per-line column where the entry name starts (dired).
+    pub entry_cols: Vec<usize>,
     pub change_tick: u64,
     pub syntax: Option<Box<crate::syntax::Cache>>,
     pub indent_override: Option<usize>,
@@ -110,6 +112,7 @@ impl Buffer {
             deactivate: false,
             overwrite: false,
             entries: Vec::new(),
+            entry_cols: Vec::new(),
             change_tick: 0,
             syntax: None,
             indent_override: None,
