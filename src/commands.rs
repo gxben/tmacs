@@ -437,7 +437,9 @@ fn backward_word(ed: &mut Editor) {
 
 fn beginning_of_buffer(ed: &mut Editor) {
     let p = ed.pt();
-    ed.bm().push_mark(p, false);
+    if !ed.b().mark_active {
+        ed.bm().push_mark(p, false);
+    }
     let b = ed.b();
     let target = match ed.arg {
         Some(n) if ed.arg_universal || ed.arg_digits => {
@@ -453,7 +455,9 @@ fn beginning_of_buffer(ed: &mut Editor) {
 
 fn end_of_buffer(ed: &mut Editor) {
     let p = ed.pt();
-    ed.bm().push_mark(p, false);
+    if !ed.b().mark_active {
+        ed.bm().push_mark(p, false);
+    }
     let b = ed.b();
     let target = match ed.arg {
         Some(n) if ed.arg_universal || ed.arg_digits => {
@@ -874,7 +878,9 @@ fn goto_line(ed: &mut Editor) {
 
 pub fn goto_line_n(ed: &mut Editor, n: i64) {
     let p = ed.pt();
-    ed.bm().push_mark(p, false);
+    if !ed.b().mark_active {
+        ed.bm().push_mark(p, false);
+    }
     let b = ed.b();
     let line = (n.max(1) as usize - 1).min(b.line_count() - 1);
     let target = b.line_start(line);
