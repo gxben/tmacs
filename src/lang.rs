@@ -309,6 +309,7 @@ pub fn default_formatter(name: &str) -> Option<(Vec<&'static str>, bool)> {
 }
 
 impl Langs {
+    #[allow(clippy::regex_creation_in_loops)]
     pub fn new() -> Langs {
         let mut list = vec![Lang {
             prog: false,

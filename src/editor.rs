@@ -682,11 +682,18 @@ impl Editor {
         let i = wins.iter().position(|&w| w == wid).unwrap_or(0);
         self.layout.remove(wid);
         self.detach_window(wid);
+        let rest = self.windows();
+        let next = rest[i
+            .min(rest.len() - 1)
+            .saturating_sub(if i > 0 { 1 } else { 0 })];
         if self.sel == wid {
-            let rest = self.windows();
-            self.sel = rest[i
-                .min(rest.len() - 1)
-                .saturating_sub(if i > 0 { 1 } else { 0 })];
+            self.sel = next;
+        }
+        // The minibuffer must return to a live window.
+        if let Some(m) = self.mini.as_mut() {
+            if m.ret_win == wid {
+                m.ret_win = next;
+            }
         }
         self.relayout();
         true
